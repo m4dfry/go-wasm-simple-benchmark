@@ -40,12 +40,11 @@ Start with
 Now you can connect to [localhost:3000/](localhost:3000/) and try yourself a simple WASM Fibonacci Benchmark.
 
 # Makefile
-
 Compile
-	make wasm
+> make wasm
 
 Run server
-	make run
+> make run
 
 ## License
 
