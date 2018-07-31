@@ -1,0 +1,147 @@
+<!doctype html>
+<!--
+Copyright 2018 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>Go wasm</title>
+
+	<style>
+.column {
+    float: left;
+    width: 50%;
+}
+
+/* Clear floats after the columns */
+.row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+	 </style>
+</head>
+
+<body>
+	<script src="http://peterolson.github.com/BigInteger.js/BigInteger.min.js"></script>
+	<script src="wasm_exec.js"></script>
+	<script src="fibonacci.js"></script>
+	<script>
+		if (!WebAssembly.instantiateStreaming) { // polyfill
+			WebAssembly.instantiateStreaming = async (resp, importObject) => {
+				const source = await (await resp).arrayBuffer();
+				return await WebAssembly.instantiate(source, importObject);
+			};
+		}
+
+		const go = new Go();
+		let mod, inst;
+		WebAssembly.instantiateStreaming(fetch("fibonacci.wasm"), go.importObject).then((result) => {
+			mod = result.module;
+			inst = result.instance;
+			document.getElementById("sendButton").disabled = false;
+			document.getElementById("runAllButton").disabled = false;
+			document.getElementById("runAll10TimesButton").disabled = false;
+		});
+
+		let printResult
+		let printResultReceived
+		let resolvePrintResultReceived
+	
+		function setPrintResult(callback) {
+			printResult = callback
+			resolvePrintResultReceived()
+		}
+	
+		async function send() {
+			var t0 = performance.now();
+			console.clear();
+
+		  	// Create the Promise and store its resolve function
+		  	printResultReceived = new Promise(resolve => {
+		    		resolvePrintResultReceived = resolve
+		  	})
+		  	const run = go.run(inst) // Start the wasm binary
+		  	await printResultReceived // Wait for the callback reception
+			var num = document.getElementById('msg').value
+			printResult(+num) // Invoke the callback
+			await run // Wait for the binary to terminate
+			
+			var t1 = performance.now();
+			print("WASM", +num, (t1 - t0));
+			//await go.run(inst);
+			inst = await WebAssembly.instantiate(mod, go.importObject); // reset instance
+			return (t1 - t0);
+		}
+
+		function fibjs() {
+			var t0 = performance.now();
+			var num = document.getElementById('msg').value
+			console.log(fibonacci(num));
+			var t1 = performance.now();
+			print("Javascript", +num, (t1 - t0));
+			return (t1 - t0);
+		}
+
+		async function runall(){
+			await send();
+			fibjs();
+		}
+		
+		async function runall10times(){
+			var i = 0;
+			var sumAWS = 0;
+			var sumJS = 0;
+			while (i < 10) {
+				sumAWS += await send();
+				sumJS += fibjs();
+				i++;
+			}
+			addToLi("Average AWS " + sumAWS/10); 
+			addToLi("Average JS " + sumJS/10); 
+		}
+
+		function print(sys, num, time) {
+			addToLi(sys + " took " + time + " ms to calculate fibonacci of " + num);
+		}
+
+		function addToLi(msg) {
+		    var node = document.createElement("li");
+		    var textnode = document.createTextNode(msg);
+		    node.appendChild(textnode);
+		    document.getElementById("responseList").appendChild(node);
+		}
+
+		function clearLi(){
+			var myNode = document.getElementById("responseList");
+			while (myNode.firstChild) {
+		    		myNode.removeChild(myNode.firstChild);
+			}	
+		}
+	</script>
+	<h1>Fibonacci simple benchmark</h1>
+	<div class="row">
+		<div class="column">
+			<h3>Run:</h3>
+			<input id="msg"></input>
+			<br /><br />
+			<button onClick="send();" id="sendButton" disabled>Send WASM</button>	
+			<button onClick="fibjs();" id="jsFibButton" >Send JS</button>	
+			<button onClick="runall();" id="runAllButton" disabled>Send both</button>	
+			<button onClick="runall10times();" id="runAll10TimesButton" disabled>Send both AVERAGE</button>	
+		</div>
+		<div class="column">
+			<h3>Log:</h3>
+			<button onClick="clearLi();" id="clearButton">Clear</button>	
+			<br /><br />
+			<ul id="responseList">
+			</ul>
+		</div>
+	</div> 
+
+</body>
+
+</html>
