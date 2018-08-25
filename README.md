@@ -35,7 +35,7 @@ You can use whatever you prefer as long as you can configure the download of .wa
 
 Start with
 
-	go run improved_server.go
+	go run server_improved.go
 
 Now you can connect to [localhost:3000/](localhost:3000/) and try yourself a simple WASM Fibonacci Benchmark.
 
